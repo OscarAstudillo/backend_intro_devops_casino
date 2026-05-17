@@ -1,19 +1,17 @@
-name: CI/CD Pipeline Casino
+name: CI/CD Pipeline Casino Backend
 
-# El pipeline solo se dispara al hacer push a la rama 'deploy'
 on:
   push:
     branches:
       - deploy
 
 env:
-  ECR_REPOSITORY: casino-backend # Cambiar a casino-frontend en el otro repositorio
+  ECR_REPOSITORY: casino-backend
 
 jobs:
   build-and-push:
     name: Construir y subir imagen a Amazon ECR
     runs-on: ubuntu-latest
-
     steps:
       - name: 1. Checkout del código
         uses: actions/checkout@v4
@@ -34,13 +32,36 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
-        # La pauta pide 3 tags: v1.0.0 (ejemplo semver), latest y el SHA del commit
         run: |
-          echo "Construyendo la imagen Docker..."
-          docker build \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:v1.0.0 .
-          
-          echo "Subiendo las imágenes a ECR..."
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:v1.0.0 .
           docker push -a $ECR_REGISTRY/$ECR_REPOSITORY
+
+  deploy:
+    name: Desplegar en EC2 Backend
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Desplegar vía SSH usando Bastion Host
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AWS_BACKEND_PRIVATE_IP }}
+          username: ec2-user
+          key: ${{ secrets.AWS_SSH_KEY }}
+          proxy_host: ${{ secrets.AWS_HOST_IP_FRONTEND }}
+          proxy_username: ec2-user
+          proxy_key: ${{ secrets.AWS_SSH_KEY }}
+          script: |
+            aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 590183930707.dkr.ecr.us-east-1.amazonaws.com
+            docker pull 590183930707.dkr.ecr.us-east-1.amazonaws.com/casino-backend:latest
+            docker rm -f casino_backend || true
+            docker run -d \
+              --name casino_backend \
+              -p 3000:3000 \
+              -e DB_HOST=${{ secrets.AWS_DB_PRIVATE_IP }} \
+              -e DB_USER=casino_user \
+              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              -e DB_NAME=casino_db \
+              -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              -e CORS_ORIGIN="*" \
+              --restart unless-stopped \
+              590183930707.dkr.ecr.us-east-1.amazonaws.com/casino-backend:latest
