@@ -44,3 +44,16 @@ spec:
             cpu: "50m" # Obligatorio para que el HPA pueda calcular el % de uso
           limits:
             cpu: "250m"
+        
+        livenessProbe:
+          httpGet:
+            path: /livez
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
