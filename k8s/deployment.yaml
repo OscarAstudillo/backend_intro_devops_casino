@@ -47,13 +47,13 @@ spec:
         
         livenessProbe:
           httpGet:
-            path: /livez
+            path: /       # Cambiado a la ruta raíz que responde 200 OK
             port: 3000
           initialDelaySeconds: 10
           periodSeconds: 15
         readinessProbe:
           httpGet:
-            path: /readyz
+            path: /health # Cambiado a la ruta que verifica la BD en Node
             port: 3000
           initialDelaySeconds: 5
           periodSeconds: 10
