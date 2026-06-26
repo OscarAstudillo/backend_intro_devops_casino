@@ -29,6 +29,8 @@ spec:
         env:
         - name: DB_HOST
           value: "postgres-service" # Nombre interno de tu Base de Datos en K8s
+        - name: DB_NAME
+          value: "casino_db"        # <--- AQUI ESTA LA VARIABLE NUEVA Y SEPARADA
         - name: DB_USER
           valueFrom:
             secretKeyRef:
@@ -44,16 +46,15 @@ spec:
             cpu: "50m" # Obligatorio para que el HPA pueda calcular el % de uso
           limits:
             cpu: "250m"
-        
-        livenessProbe:
+        livenessProbe: # Reinicia el contenedor si se bloquea
           httpGet:
-            path: /       # Cambiado a la ruta raíz que responde 200 OK
+            path: /livez
             port: 3000
           initialDelaySeconds: 10
           periodSeconds: 15
-        readinessProbe:
+        readinessProbe: # Saca el contenedor del balanceo si pierde conexión a BD
           httpGet:
-            path: /health # Cambiado a la ruta que verifica la BD en Node
+            path: /readyz
             port: 3000
           initialDelaySeconds: 5
           periodSeconds: 10
