@@ -46,15 +46,15 @@ spec:
             cpu: "50m" # Obligatorio para que el HPA pueda calcular el % de uso
           limits:
             cpu: "250m"
-        livenessProbe: # Reinicia el contenedor si se bloquea
+        livenessProbe:
           httpGet:
-            path: /livez
+            path: /
             port: 3000
           initialDelaySeconds: 10
           periodSeconds: 15
-        readinessProbe: # Saca el contenedor del balanceo si pierde conexión a BD
+        readinessProbe:
           httpGet:
-            path: /readyz
+            path: /health
             port: 3000
           initialDelaySeconds: 5
           periodSeconds: 10
