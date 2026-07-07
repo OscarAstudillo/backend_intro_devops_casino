@@ -1,3 +1,16 @@
+# 0. PersistentVolumeClaim: El "disco duro" real de Postgres (persistente)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
 # 1. ConfigMap: Contiene el script completo de creación de tablas de VidalCasino
 apiVersion: v1
 kind: ConfigMap
@@ -61,7 +74,7 @@ data:
     ON CONFLICT (codigo) DO NOTHING;
 
 ---
-# 2. Deployment: El pod de PostgreSQL
+# 2. Deployment: El pod de PostgreSQL (con volumen persistente montado)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -93,14 +106,20 @@ spec:
               name: casino-secrets
               key: DB_PASSWORD
         - name: POSTGRES_DB
-          value: "casino_db" 
+          value: "casino_db"
         volumeMounts:
         - name: init-script-volume
           mountPath: /docker-entrypoint-initdb.d/
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+          subPath: pgdata
       volumes:
       - name: init-script-volume
         configMap:
           name: postgres-init-config
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
 
 ---
 # 3. Service: Para que los backends encuentren la BD por DNS interno
